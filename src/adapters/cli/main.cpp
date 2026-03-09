@@ -34,7 +34,8 @@ Mode parseMode(int argc, char** argv) {
 int main(int argc, char** argv) {
     const Mode mode = parseMode(argc, argv);
 
-    kp::application::InputConfig cfg = kp::application::InputConfig::makeDefault();
+    kp::application::InputConfig cfg =
+        kp::application::InputConfig::makeDefault();
 
     if (mode == Mode::PrintDefault) {
         kp::application::printDefaultConfig(std::cout, cfg);

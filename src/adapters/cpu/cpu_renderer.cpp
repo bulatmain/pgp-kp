@@ -14,7 +14,9 @@ struct Hit {
     bool ok = false;
 };
 
-bool intersectTriangle(const kp::domain::Ray& ray, const kp::domain::Triangle& tri, float* out_t, kp::domain::Vec3* out_normal) {
+bool intersectTriangle(const kp::domain::Ray& ray,
+                       const kp::domain::Triangle& tri, float* out_t,
+                       kp::domain::Vec3* out_normal) {
     const float eps = 1e-6f;
 
     const kp::domain::Vec3 e1 = tri.b - tri.a;
@@ -72,7 +74,8 @@ Hit tracePrimary(const kp::domain::Scene& scene, const kp::domain::Ray& ray) {
     return hit;
 }
 
-bool inShadow(const kp::domain::Scene& scene, const kp::domain::Vec3& point, const kp::domain::Vec3& light_pos) {
+bool inShadow(const kp::domain::Scene& scene, const kp::domain::Vec3& point,
+              const kp::domain::Vec3& light_pos) {
     const kp::domain::Vec3 to_light = light_pos - point;
     const float max_t = kp::domain::length(to_light);
     if (max_t <= 1e-6f) {
@@ -85,7 +88,8 @@ bool inShadow(const kp::domain::Scene& scene, const kp::domain::Vec3& point, con
 
     for (const auto& tri : scene.triangles) {
         float t = FLT_MAX;
-        if (intersectTriangle(shadow_ray, tri, &t, nullptr) && t < max_t - 1e-3f) {
+        if (intersectTriangle(shadow_ray, tri, &t, nullptr) &&
+            t < max_t - 1e-3f) {
             return true;
         }
     }
@@ -104,8 +108,10 @@ kp::domain::Vec3 shade(const kp::domain::Scene& scene, const Hit& hit) {
         return hit.color * ambient;
     }
 
-    const kp::domain::Vec3 l = kp::domain::normalize(light.position - hit.point);
-    const float ndotl = kp::domain::clamp(kp::domain::dot(hit.normal, l), 0.0f, 1.0f);
+    const kp::domain::Vec3 l =
+        kp::domain::normalize(light.position - hit.point);
+    const float ndotl =
+        kp::domain::clamp(kp::domain::dot(hit.normal, l), 0.0f, 1.0f);
     const float intensity = ambient + 0.85f * ndotl;
     return kp::domain::hadamard(hit.color * intensity, light.color);
 }
@@ -113,8 +119,7 @@ kp::domain::Vec3 shade(const kp::domain::Scene& scene, const Hit& hit) {
 }  // namespace
 
 bool CpuRenderer::render(const kp::domain::Scene& scene,
-                         const kp::domain::Camera& camera,
-                         int ssaaSqrt,
+                         const kp::domain::Camera& camera, int ssaaSqrt,
                          kp::domain::Image* outImage,
                          kp::ports::RenderStats* outStats) {
     if (outImage == nullptr || outStats == nullptr) {
@@ -124,9 +129,12 @@ bool CpuRenderer::render(const kp::domain::Scene& scene,
     const int w = outImage->width;
     const int h = outImage->height;
 
-    const kp::domain::Vec3 forward = kp::domain::normalize(camera.target - camera.position);
-    const kp::domain::Vec3 right = kp::domain::normalize(kp::domain::cross(forward, camera.up));
-    const kp::domain::Vec3 up = kp::domain::normalize(kp::domain::cross(right, forward));
+    const kp::domain::Vec3 forward =
+        kp::domain::normalize(camera.target - camera.position);
+    const kp::domain::Vec3 right =
+        kp::domain::normalize(kp::domain::cross(forward, camera.up));
+    const kp::domain::Vec3 up =
+        kp::domain::normalize(kp::domain::cross(right, forward));
 
     const float aspect = static_cast<float>(w) / static_cast<float>(h);
     const float fov_rad = camera.fovDeg * 0.01745329251994329577f;
@@ -134,22 +142,31 @@ bool CpuRenderer::render(const kp::domain::Scene& scene,
     const float half_w = half_h * aspect;
 
     const int spp = ssaaSqrt * ssaaSqrt;
-    outStats->rays = static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) * static_cast<std::uint64_t>(spp);
+    outStats->rays = static_cast<std::uint64_t>(w) *
+                     static_cast<std::uint64_t>(h) *
+                     static_cast<std::uint64_t>(spp);
 
     for (int y = 0; y < h; ++y) {
         for (int x = 0; x < w; ++x) {
             kp::domain::Vec3 accum;
             for (int sy = 0; sy < ssaaSqrt; ++sy) {
                 for (int sx = 0; sx < ssaaSqrt; ++sx) {
-                    const float u = (static_cast<float>(x) + (static_cast<float>(sx) + 0.5f) / ssaaSqrt) / static_cast<float>(w);
-                    const float v = (static_cast<float>(y) + (static_cast<float>(sy) + 0.5f) / ssaaSqrt) / static_cast<float>(h);
+                    const float u =
+                        (static_cast<float>(x) +
+                         (static_cast<float>(sx) + 0.5f) / ssaaSqrt) /
+                        static_cast<float>(w);
+                    const float v =
+                        (static_cast<float>(y) +
+                         (static_cast<float>(sy) + 0.5f) / ssaaSqrt) /
+                        static_cast<float>(h);
 
                     const float px = (2.0f * u - 1.0f) * half_w;
                     const float py = (1.0f - 2.0f * v) * half_h;
 
                     kp::domain::Ray ray;
                     ray.origin = camera.position;
-                    ray.dir = kp::domain::normalize(forward + right * px + up * py);
+                    ray.dir =
+                        kp::domain::normalize(forward + right * px + up * py);
 
                     const Hit hit = tracePrimary(scene, ray);
                     accum += shade(scene, hit);

@@ -1,11 +1,11 @@
-#include "adapters/gpu/cuda_renderer.h"
-
 #include <cuda_runtime.h>
 
 #include <cfloat>
 #include <cmath>
 #include <iostream>
 #include <vector>
+
+#include "adapters/gpu/cuda_renderer.h"
 
 namespace kp::adapters::gpu {
 namespace {
@@ -42,14 +42,25 @@ __host__ __device__ GpuVec3 makeVec3(float x, float y, float z) {
     return v;
 }
 
-__host__ __device__ GpuVec3 add(GpuVec3 a, GpuVec3 b) { return makeVec3(a.x + b.x, a.y + b.y, a.z + b.z); }
-__host__ __device__ GpuVec3 sub(GpuVec3 a, GpuVec3 b) { return makeVec3(a.x - b.x, a.y - b.y, a.z - b.z); }
-__host__ __device__ GpuVec3 mul(GpuVec3 v, float s) { return makeVec3(v.x * s, v.y * s, v.z * s); }
-__host__ __device__ GpuVec3 hadamard(GpuVec3 a, GpuVec3 b) { return makeVec3(a.x * b.x, a.y * b.y, a.z * b.z); }
+__host__ __device__ GpuVec3 add(GpuVec3 a, GpuVec3 b) {
+    return makeVec3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+__host__ __device__ GpuVec3 sub(GpuVec3 a, GpuVec3 b) {
+    return makeVec3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+__host__ __device__ GpuVec3 mul(GpuVec3 v, float s) {
+    return makeVec3(v.x * s, v.y * s, v.z * s);
+}
+__host__ __device__ GpuVec3 hadamard(GpuVec3 a, GpuVec3 b) {
+    return makeVec3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
 
-__host__ __device__ float dot(GpuVec3 a, GpuVec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
+__host__ __device__ float dot(GpuVec3 a, GpuVec3 b) {
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
 __host__ __device__ GpuVec3 cross(GpuVec3 a, GpuVec3 b) {
-    return makeVec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+    return makeVec3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z,
+                    a.x * b.y - a.y * b.x);
 }
 
 __host__ __device__ float len(GpuVec3 v) { return sqrtf(dot(v, v)); }
@@ -68,13 +79,9 @@ __host__ __device__ float clamp(float x, float lo, float hi) {
     return x;
 }
 
-__device__ bool intersectTriangle(
-    GpuVec3 ro,
-    GpuVec3 rd,
-    const GpuTriangle& tri,
-    float* out_t,
-    GpuVec3* out_normal
-) {
+__device__ bool intersectTriangle(GpuVec3 ro, GpuVec3 rd,
+                                  const GpuTriangle& tri, float* out_t,
+                                  GpuVec3* out_normal) {
     const float eps = 1e-6f;
     const GpuVec3 e1 = sub(tri.b, tri.a);
     const GpuVec3 e2 = sub(tri.c, tri.a);
@@ -101,16 +108,9 @@ __device__ bool intersectTriangle(
     return true;
 }
 
-__global__ void renderKernel(
-    const GpuTriangle* triangles,
-    int trianglesCount,
-    GpuLight light,
-    GpuCamera camera,
-    int width,
-    int height,
-    int ssaaSqrt,
-    GpuVec3* out
-) {
+__global__ void renderKernel(const GpuTriangle* triangles, int trianglesCount,
+                             GpuLight light, GpuCamera camera, int width,
+                             int height, int ssaaSqrt, GpuVec3* out) {
     const int x = blockIdx.x * blockDim.x + threadIdx.x;
     const int y = blockIdx.y * blockDim.y + threadIdx.y;
     if (x >= width || y >= height) return;
@@ -120,13 +120,19 @@ __global__ void renderKernel(
 
     for (int sy = 0; sy < ssaaSqrt; ++sy) {
         for (int sx = 0; sx < ssaaSqrt; ++sx) {
-            const float u = (static_cast<float>(x) + (static_cast<float>(sx) + 0.5f) / ssaaSqrt) / static_cast<float>(width);
-            const float v = (static_cast<float>(y) + (static_cast<float>(sy) + 0.5f) / ssaaSqrt) / static_cast<float>(height);
+            const float u = (static_cast<float>(x) +
+                             (static_cast<float>(sx) + 0.5f) / ssaaSqrt) /
+                            static_cast<float>(width);
+            const float v = (static_cast<float>(y) +
+                             (static_cast<float>(sy) + 0.5f) / ssaaSqrt) /
+                            static_cast<float>(height);
             const float px = (2.0f * u - 1.0f) * camera.halfW;
             const float py = (1.0f - 2.0f * v) * camera.halfH;
 
             const GpuVec3 ro = camera.position;
-            const GpuVec3 rd = normalize(add(camera.forward, add(mul(camera.right, px), mul(camera.up, py))));
+            const GpuVec3 rd =
+                normalize(add(camera.forward,
+                              add(mul(camera.right, px), mul(camera.up, py))));
 
             float bestT = FLT_MAX;
             GpuVec3 bestNormal = makeVec3(0.0f, 0.0f, 0.0f);
@@ -136,7 +142,9 @@ __global__ void renderKernel(
             for (int i = 0; i < trianglesCount; ++i) {
                 float t = FLT_MAX;
                 GpuVec3 normal;
-                if (!intersectTriangle(ro, rd, triangles[i], &t, &normal)) continue;
+                if (!intersectTriangle(ro, rd, triangles[i], &t, &normal)) {
+                    continue;
+                }
                 if (t < bestT) {
                     bestT = t;
                     bestNormal = normal;
@@ -162,16 +170,18 @@ __global__ void renderKernel(
 }
 
 GpuVec3 toGpu(const kp::domain::Vec3& v) { return makeVec3(v.x, v.y, v.z); }
-kp::domain::Vec3 toHost(const GpuVec3& v) { return kp::domain::Vec3(v.x, v.y, v.z); }
+kp::domain::Vec3 toHost(const GpuVec3& v) {
+    return kp::domain::Vec3(v.x, v.y, v.z);
+}
 
 }  // namespace
 
 bool CudaRenderer::render(const kp::domain::Scene& scene,
-                          const kp::domain::Camera& camera,
-                          int ssaaSqrt,
+                          const kp::domain::Camera& camera, int ssaaSqrt,
                           kp::domain::Image* outImage,
                           kp::ports::RenderStats* outStats) {
-    if (outImage == nullptr || outStats == nullptr || scene.triangles.empty() || scene.lights.empty()) {
+    if (outImage == nullptr || outStats == nullptr || scene.triangles.empty() ||
+        scene.lights.empty()) {
         return false;
     }
 
@@ -181,16 +191,19 @@ bool CudaRenderer::render(const kp::domain::Scene& scene,
 
     std::vector<GpuTriangle> host_triangles(static_cast<size_t>(n));
     for (int i = 0; i < n; ++i) {
-        host_triangles[static_cast<size_t>(i)] = GpuTriangle{
-            toGpu(scene.triangles[static_cast<size_t>(i)].a),
-            toGpu(scene.triangles[static_cast<size_t>(i)].b),
-            toGpu(scene.triangles[static_cast<size_t>(i)].c),
-            toGpu(scene.triangles[static_cast<size_t>(i)].color)};
+        host_triangles[static_cast<size_t>(i)] =
+            GpuTriangle{toGpu(scene.triangles[static_cast<size_t>(i)].a),
+                        toGpu(scene.triangles[static_cast<size_t>(i)].b),
+                        toGpu(scene.triangles[static_cast<size_t>(i)].c),
+                        toGpu(scene.triangles[static_cast<size_t>(i)].color)};
     }
 
-    const kp::domain::Vec3 forward = kp::domain::normalize(camera.target - camera.position);
-    const kp::domain::Vec3 right = kp::domain::normalize(kp::domain::cross(forward, camera.up));
-    const kp::domain::Vec3 up = kp::domain::normalize(kp::domain::cross(right, forward));
+    const kp::domain::Vec3 forward =
+        kp::domain::normalize(camera.target - camera.position);
+    const kp::domain::Vec3 right =
+        kp::domain::normalize(kp::domain::cross(forward, camera.up));
+    const kp::domain::Vec3 up =
+        kp::domain::normalize(kp::domain::cross(right, forward));
     const float aspect = static_cast<float>(w) / static_cast<float>(h);
     const float fovRad = camera.fovDeg * 0.01745329251994329577f;
     const float halfH = std::tan(fovRad * 0.5f);
@@ -205,27 +218,34 @@ bool CudaRenderer::render(const kp::domain::Scene& scene,
         halfH,
     };
 
-    const GpuLight gpu_light = {toGpu(scene.lights[0].position), toGpu(scene.lights[0].color)};
+    const GpuLight gpu_light = {toGpu(scene.lights[0].position),
+                                toGpu(scene.lights[0].color)};
 
     GpuTriangle* d_triangles = nullptr;
     GpuVec3* d_pixels = nullptr;
 
-    cudaError_t err = cudaMalloc(&d_triangles, sizeof(GpuTriangle) * static_cast<size_t>(n));
+    cudaError_t err =
+        cudaMalloc(&d_triangles, sizeof(GpuTriangle) * static_cast<size_t>(n));
     if (err != cudaSuccess) {
-        std::cerr << "cudaMalloc triangles failed: " << cudaGetErrorString(err) << "\n";
+        std::cerr << "cudaMalloc triangles failed: " << cudaGetErrorString(err)
+                  << "\n";
         return false;
     }
 
     err = cudaMalloc(&d_pixels, sizeof(GpuVec3) * static_cast<size_t>(w * h));
     if (err != cudaSuccess) {
-        std::cerr << "cudaMalloc pixels failed: " << cudaGetErrorString(err) << "\n";
+        std::cerr << "cudaMalloc pixels failed: " << cudaGetErrorString(err)
+                  << "\n";
         cudaFree(d_triangles);
         return false;
     }
 
-    err = cudaMemcpy(d_triangles, host_triangles.data(), sizeof(GpuTriangle) * static_cast<size_t>(n), cudaMemcpyHostToDevice);
+    err = cudaMemcpy(d_triangles, host_triangles.data(),
+                     sizeof(GpuTriangle) * static_cast<size_t>(n),
+                     cudaMemcpyHostToDevice);
     if (err != cudaSuccess) {
-        std::cerr << "cudaMemcpy triangles failed: " << cudaGetErrorString(err) << "\n";
+        std::cerr << "cudaMemcpy triangles failed: " << cudaGetErrorString(err)
+                  << "\n";
         cudaFree(d_triangles);
         cudaFree(d_pixels);
         return false;
@@ -234,10 +254,12 @@ bool CudaRenderer::render(const kp::domain::Scene& scene,
     const dim3 block(16, 16);
     const dim3 grid((w + block.x - 1) / block.x, (h + block.y - 1) / block.y);
 
-    renderKernel<<<grid, block>>>(d_triangles, n, gpu_light, gpu_cam, w, h, ssaaSqrt, d_pixels);
+    renderKernel<<<grid, block>>>(d_triangles, n, gpu_light, gpu_cam, w, h,
+                                  ssaaSqrt, d_pixels);
     err = cudaGetLastError();
     if (err != cudaSuccess) {
-        std::cerr << "kernel launch failed: " << cudaGetErrorString(err) << "\n";
+        std::cerr << "kernel launch failed: " << cudaGetErrorString(err)
+                  << "\n";
         cudaFree(d_triangles);
         cudaFree(d_pixels);
         return false;
@@ -245,30 +267,37 @@ bool CudaRenderer::render(const kp::domain::Scene& scene,
 
     err = cudaDeviceSynchronize();
     if (err != cudaSuccess) {
-        std::cerr << "cudaDeviceSynchronize failed: " << cudaGetErrorString(err) << "\n";
+        std::cerr << "cudaDeviceSynchronize failed: " << cudaGetErrorString(err)
+                  << "\n";
         cudaFree(d_triangles);
         cudaFree(d_pixels);
         return false;
     }
 
     std::vector<GpuVec3> host_pixels(static_cast<size_t>(w * h));
-    err = cudaMemcpy(host_pixels.data(), d_pixels, sizeof(GpuVec3) * static_cast<size_t>(w * h), cudaMemcpyDeviceToHost);
+    err = cudaMemcpy(host_pixels.data(), d_pixels,
+                     sizeof(GpuVec3) * static_cast<size_t>(w * h),
+                     cudaMemcpyDeviceToHost);
     if (err != cudaSuccess) {
-        std::cerr << "cudaMemcpy pixels failed: " << cudaGetErrorString(err) << "\n";
+        std::cerr << "cudaMemcpy pixels failed: " << cudaGetErrorString(err)
+                  << "\n";
         cudaFree(d_triangles);
         cudaFree(d_pixels);
         return false;
     }
 
     for (int i = 0; i < w * h; ++i) {
-        outImage->pixels[static_cast<size_t>(i)] = toHost(host_pixels[static_cast<size_t>(i)]);
+        outImage->pixels[static_cast<size_t>(i)] =
+            toHost(host_pixels[static_cast<size_t>(i)]);
     }
 
     cudaFree(d_triangles);
     cudaFree(d_pixels);
 
     const int spp = ssaaSqrt * ssaaSqrt;
-    outStats->rays = static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) * static_cast<std::uint64_t>(spp);
+    outStats->rays = static_cast<std::uint64_t>(w) *
+                     static_cast<std::uint64_t>(h) *
+                     static_cast<std::uint64_t>(spp);
     return true;
 }
 

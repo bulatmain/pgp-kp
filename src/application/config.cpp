@@ -58,7 +58,8 @@ InputConfig InputConfig::makeDefault() {
     cfg.floor.texturePath = "-";
     cfg.floor.tint = kp::domain::Vec3(0.8f, 0.8f, 0.85f);
 
-    cfg.lights = {kp::domain::Light{kp::domain::Vec3(-2.0f, -1.0f, 7.0f), kp::domain::Vec3(1.0f, 1.0f, 1.0f)}};
+    cfg.lights = {kp::domain::Light{kp::domain::Vec3(-2.0f, -1.0f, 7.0f),
+                                    kp::domain::Vec3(1.0f, 1.0f, 1.0f)}};
 
     cfg.maxDepth = 1;
     cfg.ssaaSqrt = 1;
@@ -85,9 +86,11 @@ bool parseInputConfig(std::istream& in, InputConfig* out) {
 
     OrbitParams* orbits[2] = {&cfg.cameraOrbit, &cfg.targetOrbit};
     for (OrbitParams* orbit : orbits) {
-        if (!(in >> orbit->baseR >> orbit->baseZ >> orbit->basePhi)) return false;
+        if (!(in >> orbit->baseR >> orbit->baseZ >> orbit->basePhi))
+            return false;
         if (!(in >> orbit->ampR >> orbit->ampZ)) return false;
-        if (!(in >> orbit->omegaR >> orbit->omegaZ >> orbit->omegaPhi)) return false;
+        if (!(in >> orbit->omegaR >> orbit->omegaZ >> orbit->omegaPhi))
+            return false;
         if (!(in >> orbit->phaseR >> orbit->phaseZ)) return false;
     }
 
@@ -95,7 +98,9 @@ bool parseInputConfig(std::istream& in, InputConfig* out) {
         BodyConfig& b = cfg.bodies[i];
         if (!(in >> b.center.x >> b.center.y >> b.center.z)) return false;
         if (!(in >> b.color.x >> b.color.y >> b.color.z)) return false;
-        if (!(in >> b.radius >> b.reflection >> b.transparency >> b.lightsOnEdge)) return false;
+        if (!(in >> b.radius >> b.reflection >> b.transparency >>
+              b.lightsOnEdge))
+            return false;
     }
 
     FloorConfig& f = cfg.floor;
@@ -115,8 +120,10 @@ bool parseInputConfig(std::istream& in, InputConfig* out) {
     cfg.lights.reserve(static_cast<size_t>(lights_count));
     for (int i = 0; i < lights_count; ++i) {
         kp::domain::Light light;
-        if (!(in >> light.position.x >> light.position.y >> light.position.z)) return false;
-        if (!(in >> light.color.x >> light.color.y >> light.color.z)) return false;
+        if (!(in >> light.position.x >> light.position.y >> light.position.z))
+            return false;
+        if (!(in >> light.color.x >> light.color.y >> light.color.z))
+            return false;
         cfg.lights.push_back(light);
     }
 
@@ -167,8 +174,10 @@ void printDefaultConfig(std::ostream& out, const InputConfig& cfg) {
 
     out << cfg.lights.size() << '\n';
     for (const auto& light : cfg.lights) {
-        out << light.position.x << ' ' << light.position.y << ' ' << light.position.z << '\n';
-        out << light.color.x << ' ' << light.color.y << ' ' << light.color.z << '\n';
+        out << light.position.x << ' ' << light.position.y << ' '
+            << light.position.z << '\n';
+        out << light.color.x << ' ' << light.color.y << ' ' << light.color.z
+            << '\n';
     }
 
     out << cfg.maxDepth << ' ' << cfg.ssaaSqrt << '\n';
@@ -185,16 +194,22 @@ kp::domain::Scene buildScene(const InputConfig& cfg) {
 
     for (int i = 0; i < 3; ++i) {
         const BodyConfig& b = cfg.bodies[i];
-        std::vector<kp::domain::Triangle> mesh = kp::domain::buildPolyhedronMesh(types[i], b.center, b.radius, b.color);
+        std::vector<kp::domain::Triangle> mesh =
+            kp::domain::buildPolyhedronMesh(types[i], b.center, b.radius,
+                                            b.color);
         scene.triangles.insert(scene.triangles.end(), mesh.begin(), mesh.end());
     }
 
     const kp::domain::Vec3 floor_color = cfg.floor.tint;
-    scene.triangles.push_back(kp::domain::Triangle{cfg.floor.p0, cfg.floor.p1, cfg.floor.p2, floor_color});
-    scene.triangles.push_back(kp::domain::Triangle{cfg.floor.p0, cfg.floor.p2, cfg.floor.p3, floor_color});
+    scene.triangles.push_back(kp::domain::Triangle{cfg.floor.p0, cfg.floor.p1,
+                                                   cfg.floor.p2, floor_color});
+    scene.triangles.push_back(kp::domain::Triangle{cfg.floor.p0, cfg.floor.p2,
+                                                   cfg.floor.p3, floor_color});
 
     if (cfg.lights.empty()) {
-        scene.lights.push_back(kp::domain::Light{kp::domain::Vec3(-2.0f, -1.0f, 7.0f), kp::domain::Vec3(1.0f, 1.0f, 1.0f)});
+        scene.lights.push_back(
+            kp::domain::Light{kp::domain::Vec3(-2.0f, -1.0f, 7.0f),
+                              kp::domain::Vec3(1.0f, 1.0f, 1.0f)});
     } else {
         scene.lights.push_back(cfg.lights[0]);
     }
@@ -203,9 +218,10 @@ kp::domain::Scene buildScene(const InputConfig& cfg) {
 }
 
 kp::domain::Camera buildCamera(const InputConfig& cfg, int frameIndex) {
-    const float t = (cfg.frames <= 1)
-        ? 0.0f
-        : (2.0f * static_cast<float>(M_PI) * static_cast<float>(frameIndex) / static_cast<float>(cfg.frames - 1));
+    const float t = (cfg.frames <= 1) ? 0.0f
+                                      : (2.0f * static_cast<float>(M_PI) *
+                                         static_cast<float>(frameIndex) /
+                                         static_cast<float>(cfg.frames - 1));
 
     kp::domain::Camera cam;
     cam.position = evalOrbit(cfg.cameraOrbit, t);

@@ -6,12 +6,10 @@
 
 namespace kp::domain {
 
-enum class PolyhedronType {
-    Tetrahedron,
-    Hexahedron,
-    Icosahedron
-};
+enum class PolyhedronType { Tetrahedron, Hexahedron, Icosahedron };
 
-std::vector<Triangle> buildPolyhedronMesh(PolyhedronType type, const Vec3& center, float radius, const Vec3& color);
+std::vector<Triangle> buildPolyhedronMesh(PolyhedronType type,
+                                          const Vec3& center, float radius,
+                                          const Vec3& color);
 
 }  // namespace kp::domain

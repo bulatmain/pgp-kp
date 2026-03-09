@@ -37,10 +37,15 @@ struct Image {
     std::vector<Vec3> pixels;
 
     Image() = default;
-    Image(int w, int h) : width(w), height(h), pixels(static_cast<size_t>(w * h), Vec3()) {}
+    Image(int w, int h)
+        : width(w), height(h), pixels(static_cast<size_t>(w * h), Vec3()) {}
 
-    Vec3& at(int x, int y) { return pixels[static_cast<size_t>(y * width + x)]; }
-    const Vec3& at(int x, int y) const { return pixels[static_cast<size_t>(y * width + x)]; }
+    Vec3& at(int x, int y) {
+        return pixels[static_cast<size_t>(y * width + x)];
+    }
+    const Vec3& at(int x, int y) const {
+        return pixels[static_cast<size_t>(y * width + x)];
+    }
 };
 
 struct Scene {
