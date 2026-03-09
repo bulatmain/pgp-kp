@@ -24,7 +24,7 @@ CPU_OBJS := $(CPU_SRCS:.cpp=.o)
 GPU_OBJS := $(GPU_SRCS:.cpp=.o)
 GPU_OBJS := $(GPU_OBJS:.cu=.o)
 
-TARGET := kp_raytracer
+TARGET := kp
 
 all: $(TARGET)
 
