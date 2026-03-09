@@ -10,34 +10,34 @@
 namespace kp::application {
 namespace {
 
-kp::domain::Vec3 CylToCartesian(float r, float phi, float z) {
+kp::domain::Vec3 cylToCartesian(float r, float phi, float z) {
     return kp::domain::Vec3(r * std::cos(phi), r * std::sin(phi), z);
 }
 
-kp::domain::Vec3 EvalOrbit(const OrbitParams& o, float t) {
-    const float r = o.base_r + o.amp_r * std::sin(o.omega_r * t + o.phase_r);
-    const float z = o.base_z + o.amp_z * std::sin(o.omega_z * t + o.phase_z);
-    const float phi = o.base_phi + o.omega_phi * t;
-    return CylToCartesian(r, phi, z);
+kp::domain::Vec3 evalOrbit(const OrbitParams& o, float t) {
+    const float r = o.baseR + o.ampR * std::sin(o.omegaR * t + o.phaseR);
+    const float z = o.baseZ + o.ampZ * std::sin(o.omegaZ * t + o.phaseZ);
+    const float phi = o.basePhi + o.omegaPhi * t;
+    return cylToCartesian(r, phi, z);
 }
 
 }  // namespace
 
-InputConfig InputConfig::Default() {
+InputConfig InputConfig::makeDefault() {
     InputConfig cfg;
     cfg.frames = 180;
-    cfg.output_pattern = "out/frame_%04d.ppm";
+    cfg.outputPattern = "out/frame_%04d.ppm";
     cfg.width = 960;
     cfg.height = 540;
-    cfg.fov_deg = 75.0f;
+    cfg.fovDeg = 75.0f;
 
-    cfg.camera_orbit.base_r = 8.0f;
-    cfg.camera_orbit.base_z = 3.2f;
-    cfg.camera_orbit.omega_phi = 1.0f;
+    cfg.cameraOrbit.baseR = 8.0f;
+    cfg.cameraOrbit.baseZ = 3.2f;
+    cfg.cameraOrbit.omegaPhi = 1.0f;
 
-    cfg.target_orbit.base_r = 0.0f;
-    cfg.target_orbit.base_z = 0.8f;
-    cfg.target_orbit.omega_phi = 0.5f;
+    cfg.targetOrbit.baseR = 0.0f;
+    cfg.targetOrbit.baseZ = 0.8f;
+    cfg.targetOrbit.omegaPhi = 0.5f;
 
     cfg.bodies[0].center = kp::domain::Vec3(-2.0f, -0.6f, 0.8f);
     cfg.bodies[0].color = kp::domain::Vec3(1.0f, 0.2f, 0.2f);
@@ -55,17 +55,17 @@ InputConfig InputConfig::Default() {
     cfg.floor.p1 = kp::domain::Vec3(-6.0f, 6.0f, -1.0f);
     cfg.floor.p2 = kp::domain::Vec3(6.0f, 6.0f, -1.0f);
     cfg.floor.p3 = kp::domain::Vec3(6.0f, -6.0f, -1.0f);
-    cfg.floor.texture_path = "-";
+    cfg.floor.texturePath = "-";
     cfg.floor.tint = kp::domain::Vec3(0.8f, 0.8f, 0.85f);
 
     cfg.lights = {kp::domain::Light{kp::domain::Vec3(-2.0f, -1.0f, 7.0f), kp::domain::Vec3(1.0f, 1.0f, 1.0f)}};
 
-    cfg.max_depth = 1;
-    cfg.ssaa_sqrt = 1;
+    cfg.maxDepth = 1;
+    cfg.ssaaSqrt = 1;
     return cfg;
 }
 
-bool ParseInputConfig(std::istream& in, InputConfig* out) {
+bool parseInputConfig(std::istream& in, InputConfig* out) {
     if (out == nullptr) {
         return false;
     }
@@ -75,27 +75,27 @@ bool ParseInputConfig(std::istream& in, InputConfig* out) {
         return false;
     }
 
-    if (!(in >> cfg.output_pattern)) {
+    if (!(in >> cfg.outputPattern)) {
         return false;
     }
 
-    if (!(in >> cfg.width >> cfg.height >> cfg.fov_deg)) {
+    if (!(in >> cfg.width >> cfg.height >> cfg.fovDeg)) {
         return false;
     }
 
-    OrbitParams* orbits[2] = {&cfg.camera_orbit, &cfg.target_orbit};
+    OrbitParams* orbits[2] = {&cfg.cameraOrbit, &cfg.targetOrbit};
     for (OrbitParams* orbit : orbits) {
-        if (!(in >> orbit->base_r >> orbit->base_z >> orbit->base_phi)) return false;
-        if (!(in >> orbit->amp_r >> orbit->amp_z)) return false;
-        if (!(in >> orbit->omega_r >> orbit->omega_z >> orbit->omega_phi)) return false;
-        if (!(in >> orbit->phase_r >> orbit->phase_z)) return false;
+        if (!(in >> orbit->baseR >> orbit->baseZ >> orbit->basePhi)) return false;
+        if (!(in >> orbit->ampR >> orbit->ampZ)) return false;
+        if (!(in >> orbit->omegaR >> orbit->omegaZ >> orbit->omegaPhi)) return false;
+        if (!(in >> orbit->phaseR >> orbit->phaseZ)) return false;
     }
 
     for (int i = 0; i < 3; ++i) {
         BodyConfig& b = cfg.bodies[i];
         if (!(in >> b.center.x >> b.center.y >> b.center.z)) return false;
         if (!(in >> b.color.x >> b.color.y >> b.color.z)) return false;
-        if (!(in >> b.radius >> b.reflection >> b.transparency >> b.lights_on_edge)) return false;
+        if (!(in >> b.radius >> b.reflection >> b.transparency >> b.lightsOnEdge)) return false;
     }
 
     FloorConfig& f = cfg.floor;
@@ -103,7 +103,7 @@ bool ParseInputConfig(std::istream& in, InputConfig* out) {
     if (!(in >> f.p1.x >> f.p1.y >> f.p1.z)) return false;
     if (!(in >> f.p2.x >> f.p2.y >> f.p2.z)) return false;
     if (!(in >> f.p3.x >> f.p3.y >> f.p3.z)) return false;
-    if (!(in >> f.texture_path)) return false;
+    if (!(in >> f.texturePath)) return false;
     if (!(in >> f.tint.x >> f.tint.y >> f.tint.z >> f.reflection)) return false;
 
     int lights_count = 0;
@@ -120,30 +120,30 @@ bool ParseInputConfig(std::istream& in, InputConfig* out) {
         cfg.lights.push_back(light);
     }
 
-    if (!(in >> cfg.max_depth >> cfg.ssaa_sqrt)) {
+    if (!(in >> cfg.maxDepth >> cfg.ssaaSqrt)) {
         return false;
     }
 
     if (cfg.frames < 1) cfg.frames = 1;
     if (cfg.width < 1) cfg.width = 1;
     if (cfg.height < 1) cfg.height = 1;
-    if (cfg.ssaa_sqrt < 1) cfg.ssaa_sqrt = 1;
+    if (cfg.ssaaSqrt < 1) cfg.ssaaSqrt = 1;
 
     *out = cfg;
     return true;
 }
 
-void PrintDefaultConfig(std::ostream& out, const InputConfig& cfg) {
+void printDefaultConfig(std::ostream& out, const InputConfig& cfg) {
     out << cfg.frames << '\n';
-    out << cfg.output_pattern << '\n';
-    out << cfg.width << ' ' << cfg.height << ' ' << cfg.fov_deg << '\n';
+    out << cfg.outputPattern << '\n';
+    out << cfg.width << ' ' << cfg.height << ' ' << cfg.fovDeg << '\n';
 
-    const OrbitParams orbits[2] = {cfg.camera_orbit, cfg.target_orbit};
+    const OrbitParams orbits[2] = {cfg.cameraOrbit, cfg.targetOrbit};
     for (const OrbitParams& o : orbits) {
-        out << o.base_r << ' ' << o.base_z << ' ' << o.base_phi << '\n';
-        out << o.amp_r << ' ' << o.amp_z << '\n';
-        out << o.omega_r << ' ' << o.omega_z << ' ' << o.omega_phi << '\n';
-        out << o.phase_r << ' ' << o.phase_z << '\n';
+        out << o.baseR << ' ' << o.baseZ << ' ' << o.basePhi << '\n';
+        out << o.ampR << ' ' << o.ampZ << '\n';
+        out << o.omegaR << ' ' << o.omegaZ << ' ' << o.omegaPhi << '\n';
+        out << o.phaseR << ' ' << o.phaseZ << '\n';
     }
 
     for (int i = 0; i < 3; ++i) {
@@ -153,7 +153,7 @@ void PrintDefaultConfig(std::ostream& out, const InputConfig& cfg) {
         out << b.radius << '\n';
         out << b.reflection << '\n';
         out << b.transparency << '\n';
-        out << b.lights_on_edge << '\n';
+        out << b.lightsOnEdge << '\n';
     }
 
     const FloorConfig& f = cfg.floor;
@@ -161,7 +161,7 @@ void PrintDefaultConfig(std::ostream& out, const InputConfig& cfg) {
     out << f.p1.x << ' ' << f.p1.y << ' ' << f.p1.z << '\n';
     out << f.p2.x << ' ' << f.p2.y << ' ' << f.p2.z << '\n';
     out << f.p3.x << ' ' << f.p3.y << ' ' << f.p3.z << '\n';
-    out << f.texture_path << '\n';
+    out << f.texturePath << '\n';
     out << f.tint.x << ' ' << f.tint.y << ' ' << f.tint.z << '\n';
     out << f.reflection << '\n';
 
@@ -171,10 +171,10 @@ void PrintDefaultConfig(std::ostream& out, const InputConfig& cfg) {
         out << light.color.x << ' ' << light.color.y << ' ' << light.color.z << '\n';
     }
 
-    out << cfg.max_depth << ' ' << cfg.ssaa_sqrt << '\n';
+    out << cfg.maxDepth << ' ' << cfg.ssaaSqrt << '\n';
 }
 
-kp::domain::Scene BuildSceneVariant3(const InputConfig& cfg) {
+kp::domain::Scene buildScene(const InputConfig& cfg) {
     kp::domain::Scene scene;
 
     const kp::domain::PolyhedronType types[3] = {
@@ -185,7 +185,7 @@ kp::domain::Scene BuildSceneVariant3(const InputConfig& cfg) {
 
     for (int i = 0; i < 3; ++i) {
         const BodyConfig& b = cfg.bodies[i];
-        std::vector<kp::domain::Triangle> mesh = kp::domain::BuildPolyhedronMesh(types[i], b.center, b.radius, b.color);
+        std::vector<kp::domain::Triangle> mesh = kp::domain::buildPolyhedronMesh(types[i], b.center, b.radius, b.color);
         scene.triangles.insert(scene.triangles.end(), mesh.begin(), mesh.end());
     }
 
@@ -202,28 +202,28 @@ kp::domain::Scene BuildSceneVariant3(const InputConfig& cfg) {
     return scene;
 }
 
-kp::domain::Camera BuildCamera(const InputConfig& cfg, int frame_idx) {
+kp::domain::Camera buildCamera(const InputConfig& cfg, int frameIndex) {
     const float t = (cfg.frames <= 1)
         ? 0.0f
-        : (2.0f * static_cast<float>(M_PI) * static_cast<float>(frame_idx) / static_cast<float>(cfg.frames - 1));
+        : (2.0f * static_cast<float>(M_PI) * static_cast<float>(frameIndex) / static_cast<float>(cfg.frames - 1));
 
     kp::domain::Camera cam;
-    cam.position = EvalOrbit(cfg.camera_orbit, t);
-    cam.target = EvalOrbit(cfg.target_orbit, t);
+    cam.position = evalOrbit(cfg.cameraOrbit, t);
+    cam.target = evalOrbit(cfg.targetOrbit, t);
     cam.up = kp::domain::Vec3(0.0f, 0.0f, 1.0f);
-    cam.fov_deg = cfg.fov_deg;
+    cam.fovDeg = cfg.fovDeg;
     return cam;
 }
 
-std::string MakeFramePath(const std::string& pattern, int frame_idx) {
+std::string makeFramePath(const std::string& pattern, int frameIndex) {
     if (pattern.find('%') == std::string::npos) {
-        return pattern + std::to_string(frame_idx);
+        return pattern + std::to_string(frameIndex);
     }
 
     char buf[4096];
-    const int n = std::snprintf(buf, sizeof(buf), pattern.c_str(), frame_idx);
+    const int n = std::snprintf(buf, sizeof(buf), pattern.c_str(), frameIndex);
     if (n <= 0) {
-        return pattern + std::to_string(frame_idx);
+        return pattern + std::to_string(frameIndex);
     }
     return std::string(buf);
 }

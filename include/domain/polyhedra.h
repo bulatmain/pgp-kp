@@ -12,6 +12,6 @@ enum class PolyhedronType {
     Icosahedron
 };
 
-std::vector<Triangle> BuildPolyhedronMesh(PolyhedronType type, const Vec3& center, float radius, const Vec3& color);
+std::vector<Triangle> buildPolyhedronMesh(PolyhedronType type, const Vec3& center, float radius, const Vec3& color);
 
 }  // namespace kp::domain

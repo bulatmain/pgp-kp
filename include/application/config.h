@@ -10,19 +10,19 @@
 namespace kp::application {
 
 struct OrbitParams {
-    float base_r = 7.0f;
-    float base_z = 3.0f;
-    float base_phi = 0.0f;
+    float baseR = 7.0f;
+    float baseZ = 3.0f;
+    float basePhi = 0.0f;
 
-    float amp_r = 0.0f;
-    float amp_z = 0.0f;
+    float ampR = 0.0f;
+    float ampZ = 0.0f;
 
-    float omega_r = 0.0f;
-    float omega_z = 0.0f;
-    float omega_phi = 1.0f;
+    float omegaR = 0.0f;
+    float omegaZ = 0.0f;
+    float omegaPhi = 1.0f;
 
-    float phase_r = 0.0f;
-    float phase_z = 0.0f;
+    float phaseR = 0.0f;
+    float phaseZ = 0.0f;
 };
 
 struct BodyConfig {
@@ -31,7 +31,7 @@ struct BodyConfig {
     float radius = 1.0f;
     float reflection = 0.0f;
     float transparency = 0.0f;
-    int lights_on_edge = 0;
+    int lightsOnEdge = 0;
 };
 
 struct FloorConfig {
@@ -39,37 +39,37 @@ struct FloorConfig {
     kp::domain::Vec3 p1;
     kp::domain::Vec3 p2;
     kp::domain::Vec3 p3;
-    std::string texture_path;
+    std::string texturePath;
     kp::domain::Vec3 tint;
     float reflection = 0.0f;
 };
 
 struct InputConfig {
     int frames = 120;
-    std::string output_pattern = "out/frame_%d.ppm";
+    std::string outputPattern = "out/frame_%d.ppm";
     int width = 800;
     int height = 600;
-    float fov_deg = 70.0f;
+    float fovDeg = 70.0f;
 
-    OrbitParams camera_orbit;
-    OrbitParams target_orbit;
+    OrbitParams cameraOrbit;
+    OrbitParams targetOrbit;
 
     BodyConfig bodies[3];
     FloorConfig floor;
 
     std::vector<kp::domain::Light> lights;
 
-    int max_depth = 1;
-    int ssaa_sqrt = 1;
+    int maxDepth = 1;
+    int ssaaSqrt = 1;
 
-    static InputConfig Default();
+    static InputConfig makeDefault();
 };
 
-bool ParseInputConfig(std::istream& in, InputConfig* out);
-void PrintDefaultConfig(std::ostream& out, const InputConfig& cfg);
+bool parseInputConfig(std::istream& in, InputConfig* out);
+void printDefaultConfig(std::ostream& out, const InputConfig& cfg);
 
-kp::domain::Scene BuildSceneVariant3(const InputConfig& cfg);
-kp::domain::Camera BuildCamera(const InputConfig& cfg, int frame_idx);
-std::string MakeFramePath(const std::string& pattern, int frame_idx);
+kp::domain::Scene buildScene(const InputConfig& cfg);
+kp::domain::Camera buildCamera(const InputConfig& cfg, int frameIndex);
+std::string makeFramePath(const std::string& pattern, int frameIndex);
 
 }  // namespace kp::application

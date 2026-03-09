@@ -16,7 +16,7 @@ enum class Mode {
     PrintDefault,
 };
 
-Mode ParseMode(int argc, char** argv) {
+Mode parseMode(int argc, char** argv) {
     if (argc <= 1) {
         return Mode::Gpu;
     }
@@ -32,16 +32,16 @@ Mode ParseMode(int argc, char** argv) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    const Mode mode = ParseMode(argc, argv);
+    const Mode mode = parseMode(argc, argv);
 
-    kp::application::InputConfig cfg = kp::application::InputConfig::Default();
+    kp::application::InputConfig cfg = kp::application::InputConfig::makeDefault();
 
     if (mode == Mode::PrintDefault) {
-        kp::application::PrintDefaultConfig(std::cout, cfg);
+        kp::application::printDefaultConfig(std::cout, cfg);
         return 0;
     }
 
-    if (!kp::application::ParseInputConfig(std::cin, &cfg)) {
+    if (!kp::application::parseInputConfig(std::cin, &cfg)) {
         std::cerr << "stdin config not found or invalid, defaults are used\n";
     }
 
@@ -54,5 +54,5 @@ int main(int argc, char** argv) {
 
     kp::adapters::file::PpmWriter writer;
     kp::application::App app(renderer.get(), &writer);
-    return app.Run(cfg) ? 0 : 1;
+    return app.run(cfg) ? 0 : 1;
 }

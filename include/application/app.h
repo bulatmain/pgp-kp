@@ -10,11 +10,11 @@ class App {
 public:
     App(kp::ports::IRenderer* renderer, kp::ports::IImageWriter* writer);
 
-    bool Run(const InputConfig& cfg);
+    bool run(const InputConfig& cfg);
 
 private:
-    kp::ports::IRenderer* renderer_;
-    kp::ports::IImageWriter* writer_;
+    kp::ports::IRenderer* renderer;
+    kp::ports::IImageWriter* writer;
 };
 
 }  // namespace kp::application

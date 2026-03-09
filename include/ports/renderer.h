@@ -13,11 +13,11 @@ struct RenderStats {
 class IRenderer {
 public:
     virtual ~IRenderer() = default;
-    virtual bool Render(const kp::domain::Scene& scene,
+    virtual bool render(const kp::domain::Scene& scene,
                         const kp::domain::Camera& camera,
-                        int ssaa_sqrt,
-                        kp::domain::Image* out_image,
-                        RenderStats* out_stats) = 0;
+                        int ssaaSqrt,
+                        kp::domain::Image* outImage,
+                        RenderStats* outStats) = 0;
 };
 
 }  // namespace kp::ports

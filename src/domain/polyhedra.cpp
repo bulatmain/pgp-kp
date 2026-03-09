@@ -6,7 +6,7 @@
 namespace kp::domain {
 namespace {
 
-std::vector<Triangle> BuildFromIndexedFaces(
+std::vector<Triangle> buildFromIndexedFaces(
     const std::vector<Vec3>& vertices,
     const std::vector<std::array<int, 3>>& faces,
     const Vec3& center,
@@ -15,7 +15,7 @@ std::vector<Triangle> BuildFromIndexedFaces(
 ) {
     float max_len = 0.0f;
     for (const Vec3& v : vertices) {
-        const float l = Length(v);
+        const float l = length(v);
         if (l > max_len) {
             max_len = l;
         }
@@ -36,7 +36,7 @@ std::vector<Triangle> BuildFromIndexedFaces(
     return triangles;
 }
 
-std::vector<Triangle> BuildTetrahedron(const Vec3& center, float radius, const Vec3& color) {
+std::vector<Triangle> buildTetrahedron(const Vec3& center, float radius, const Vec3& color) {
     const std::vector<Vec3> vertices = {
         Vec3(1.0f, 1.0f, 1.0f),
         Vec3(-1.0f, -1.0f, 1.0f),
@@ -51,10 +51,10 @@ std::vector<Triangle> BuildTetrahedron(const Vec3& center, float radius, const V
         {1, 3, 2},
     };
 
-    return BuildFromIndexedFaces(vertices, faces, center, radius, color);
+    return buildFromIndexedFaces(vertices, faces, center, radius, color);
 }
 
-std::vector<Triangle> BuildHexahedron(const Vec3& center, float radius, const Vec3& color) {
+std::vector<Triangle> buildHexahedron(const Vec3& center, float radius, const Vec3& color) {
     const std::vector<Vec3> vertices = {
         Vec3(-1.0f, -1.0f, -1.0f),  // 0
         Vec3(1.0f, -1.0f, -1.0f),   // 1
@@ -75,10 +75,10 @@ std::vector<Triangle> BuildHexahedron(const Vec3& center, float radius, const Ve
         {3, 7, 4}, {3, 4, 0},
     };
 
-    return BuildFromIndexedFaces(vertices, faces, center, radius, color);
+    return buildFromIndexedFaces(vertices, faces, center, radius, color);
 }
 
-std::vector<Triangle> BuildIcosahedron(const Vec3& center, float radius, const Vec3& color) {
+std::vector<Triangle> buildIcosahedron(const Vec3& center, float radius, const Vec3& color) {
     const float phi = (1.0f + std::sqrt(5.0f)) * 0.5f;
     const std::vector<Vec3> vertices = {
         Vec3(-1, phi, 0), Vec3(1, phi, 0), Vec3(-1, -phi, 0), Vec3(1, -phi, 0),
@@ -93,19 +93,19 @@ std::vector<Triangle> BuildIcosahedron(const Vec3& center, float radius, const V
         {4, 9, 5}, {2, 4, 11}, {6, 2, 10}, {8, 6, 7}, {9, 8, 1},
     };
 
-    return BuildFromIndexedFaces(vertices, faces, center, radius, color);
+    return buildFromIndexedFaces(vertices, faces, center, radius, color);
 }
 
 }  // namespace
 
-std::vector<Triangle> BuildPolyhedronMesh(PolyhedronType type, const Vec3& center, float radius, const Vec3& color) {
+std::vector<Triangle> buildPolyhedronMesh(PolyhedronType type, const Vec3& center, float radius, const Vec3& color) {
     switch (type) {
         case PolyhedronType::Tetrahedron:
-            return BuildTetrahedron(center, radius, color);
+            return buildTetrahedron(center, radius, color);
         case PolyhedronType::Hexahedron:
-            return BuildHexahedron(center, radius, color);
+            return buildHexahedron(center, radius, color);
         case PolyhedronType::Icosahedron:
-            return BuildIcosahedron(center, radius, color);
+            return buildIcosahedron(center, radius, color);
     }
     return {};
 }

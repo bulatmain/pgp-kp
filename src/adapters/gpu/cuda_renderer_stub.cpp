@@ -4,7 +4,7 @@
 
 namespace kp::adapters::gpu {
 
-bool CudaRenderer::Render(const kp::domain::Scene&,
+bool CudaRenderer::render(const kp::domain::Scene&,
                           const kp::domain::Camera&,
                           int,
                           kp::domain::Image*,
