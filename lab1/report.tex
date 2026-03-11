@@ -1,0 +1,259 @@
+\documentclass[a4paper,14pt]{extarticle}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\geometry{
+    left=30mm,
+    right=15mm,
+    top=20mm,
+    bottom=20mm
+}
+
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{3em}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\lstdefinestyle{cudastyle}{
+    language=C++,
+    basicstyle=\ttfamily\normalsize,
+    keywordstyle=\color{blue!60!black},
+    commentstyle=\color{green!40!black},
+    stringstyle=\color{orange!50!black},
+    backgroundcolor=\color{codebg},
+    frame=single,
+    breaklines=true,
+    showstringspaces=false,
+    tabsize=4
+}
+
+\begin{document}
+
+\begin{titlepage}
+    \begin{center}
+        \textbf{МОСКОВСКИЙ АВИАЦИОННЫЙ ИНСТИТУТ}\\
+        \textbf{(НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ)}\\
+        Институт №8 «Компьютерные науки и прикладная математика»
+    \end{center}
+
+    \vspace{3.5cm}
+
+    \begin{center}
+        \textbf{\Large Лабораторная работа №1}\\
+        \vspace{0.3cm}
+        по курсу «Технологии параллельного программирования»\\
+        \vspace{0.8cm}
+        \textbf{Освоение программного обеспечения для работы с технологией CUDA.}\\
+        \textbf{Примитивные операции над векторами.}
+    \end{center}
+
+    \vspace{4cm}
+
+    \begin{flushright}
+        Выполнил: Ахметшин Б.Р.\\
+        Группа: М8О-403Б-22\\
+        Преподаватели: А.Ю. Морозов,\\
+        \hspace*{3.6cm} Е.Е. Заяц
+    \end{flushright}
+
+    \vfill
+
+    \begin{center}
+        Москва, 2026
+    \end{center}
+\end{titlepage}
+
+\section*{Условие}
+Цель работы: Ознакомление и установка программного обеспечения для работы с
+программно-аппаратной архитектурой параллельных вычислений (CUDA).
+
+Вариант: Поэлементное умножение векторов.
+
+\section*{Программное и аппаратное обеспечение}
+\textbf{GPU}
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.50\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+Имя & NVIDIA-SMI 580.82.07  \\
+Compute Capability & 7.5 \\
+Объем глобальной памяти & 15637086208 \\
+Разделяемая память на блок & 49152 \\
+Константная память & 65536 \\
+Регистров на блок & 65536 \\
+Макс. потоков на блок & (1024, 1024, 64) \\
+Макс. размер блока & 2147483647 x 65535 x 65535 \\
+Количество мультипроцессоров & 40 \\
+\end{tabular}
+
+\newpage
+\vspace{0.4cm}
+\textbf{CPU}
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.50\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+Архитектура & x86\_64 \\
+CPU op-mode(s) & 32-bit, 64-bit \\
+Address sizes & 48 bits physical, 48 bits virtual \\
+Порядок байт & Little Endian \\
+CPU(s) & 12 \\
+On-line CPU(s) list & 0-11 \\
+ID производителя & AuthenticAMD \\
+Имя модели & AMD Ryzen 5 7600 6-Core Processor \\
+Семейство ЦПУ & 25 \\
+Модель & 97 \\
+Потоков на ядро & 2 \\
+Ядер на сокет & 6 \\
+Сокетов & 1 \\
+Степпинг & 2 \\
+Frequency boost & enabled \\
+CPU max MHz & 5171.0000 \\
+CPU min MHz & 545.0000 \\
+\end{tabular}
+
+\vspace{0.4cm}
+\textbf{RAM}\\
+64 GB
+
+\vspace{0.2cm}
+\textbf{Data storage}\\
+SSD на 1TB
+
+\vspace{0.2cm}
+\textbf{ОС}\\
+Ubuntu 24.04.4 LTS
+
+\vspace{0.2cm}
+\textbf{Среда разработки}\\
+VS Code
+
+\vspace{0.2cm}
+\textbf{Компилятор}\\
+nvcc
+
+\section*{Метод решения}
+Для решения задачи используется технология CUDA, позволяющая выполнять
+однотипные операции над элементами векторов параллельно на GPU.
+
+Каждый поток CUDA вычисляет результат для одного элемента выходного массива:
+\[
+c[i] = a[i] \cdot b[i].
+\]
+
+Глобальный индекс потока определяется как:
+\[
+i = \texttt{blockIdx.x * blockDim.x + threadIdx.x}.
+\]
+Если индекс выходит за пределы диапазона \texttt{[0, n)}, поток не выполняет вычисления.
+
+Перед запуском ядра входные данные копируются с host в device,
+после выполнения ядра результат копируется обратно на host.
+Для проверки корректности вызовов CUDA API используется макрос \texttt{CSC}.
+
+\section*{Описание программы}
+Программа реализована в одном файле \texttt{lab1.cu}.
+
+Основные этапы:
+\begin{enumerate}
+    \item Считывание размера \texttt{n} и двух входных векторов типа \texttt{double}.
+    \item Выделение памяти на GPU: \texttt{cudaMalloc(d\_a, d\_b, d\_c)}.
+    \item Копирование входных данных в память устройства: \texttt{cudaMemcpy}.
+    \item Запуск CUDA-ядра с параметрами сетки и блока.
+    \item Синхронизация устройства и проверка ошибок.
+    \item Копирование результата на host и вывод в формате \texttt{\%.10e}.
+\end{enumerate}
+
+CUDA-ядро:
+\begin{lstlisting}[style=cudastyle]
+__global__ void vectorMulKernel(const double *a, const double *b, double *c, int n) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < n) {
+        c[idx] = a[idx] * b[idx];
+    }
+}
+\end{lstlisting}
+
+Сборка:
+\begin{lstlisting}[style=cudastyle]
+cd lab1
+make
+\end{lstlisting}
+
+Запуск:
+\begin{lstlisting}[style=cudastyle]
+./lab1 < input.txt
+\end{lstlisting}
+
+\section*{Результаты}
+\textbf{Проверочный пример}
+
+Вход:
+\begin{lstlisting}[style=cudastyle]
+3
+1 2 3
+4 5 6
+\end{lstlisting}
+
+Выход:
+\begin{lstlisting}[style=cudastyle]
+4.0000000000e+00 1.0000000000e+01 1.8000000000e+01
+\end{lstlisting}
+
+\vspace{0.4cm}
+\textbf{Замеры:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,frame=single]
++----+----------+----------------------+----------+----------------+---------------+
+| No | n        | CUDA (grid, block)   | CPU, ms  | GPU kernel, ms | GPU total, ms |
++----+----------+----------------------+----------+----------------+---------------+
+| 1  | 10000    | <<<    1,   32>>>    | 0.002790 | 0.109888       | 280.195262    |
+| 2  | 10000    | <<<  128,  256>>>    |          | 0.093216       | 277.456777    |
+| 3  | 10000    | <<< 1024, 1024>>>    |          | 0.128736       | 281.152839    |
+| 4  | 100000   | <<<    1,   32>>>    | 0.029381 | 0.065120       | 276.495043    |
+| 5  | 100000   | <<<  128,  256>>>    |          | 0.070272       | 284.427908    |
+| 6  | 100000   | <<< 1024, 1024>>>    |          | 0.109664       | 281.383196    |
+| 7  | 1000000  | <<<    1,   32>>>    | 0.595039 | 0.072160       | 282.053103    |
+| 8  | 1000000  | <<<  128,  256>>>    |          | 0.074752       | 285.034988    |
+| 9  | 1000000  | <<< 1024, 1024>>>    |          | 0.191328       | 286.654042    |
++----+----------+----------------------+----------+----------------+---------------+
+\end{lstlisting}
+
+\section*{Выводы}
+\begin{sloppypar}
+В лабораторной работе реализована программа поэлементного умножения двух
+векторов с использованием технологии CUDA. Алгоритм корректно выполняет
+распараллеливание по элементам массива и выводит результат с требуемой точностью.
+
+По результатам замеров видно, что время выполнения самого ядра GPU мало
+(порядка $0.065\mbox{--}0.191$ мс), однако полное время GPU в текущей реализации
+остается почти постоянным и высоким (около $276\mbox{--}287$ мс) для всех рассмотренных $n$.
+Это указывает на доминирование накладных расходов (выделение памяти, копирование
+данных, синхронизации и прочие служебные операции), а не времени вычисления ядра.
+
+Сравнение с CPU для заполненных строк показывает, что на данных размера
+$10^4$, $10^5$ и $10^6$ текущая GPU-реализация по общему времени уступает CPU,
+несмотря на быстрое исполнение самого ядра. Лучшая конфигурация по времени ядра
+в данных замерах --- \texttt{<<<1, 32>>>} для $n=10^5$ и $n=10^6$,
+а для $n=10^4$ --- \texttt{<<<128, 256>>>}.
+
+Реализация пригодна как базовая учебная версия для освоения CUDA.
+Для получения ускорения по полному времени требуется оптимизация обменов
+между host и device, а также сокращение накладных расходов запуска.
+
+Почти одинаковое время ядра для конфигураций 1x32 и 128x256 в текущих
+замерах объясняется тем, что операция
+поэлементного умножения является очень легкой и ограничивается в основном
+доступом к памяти и накладными расходами запуска. При этом значения времени
+ядра малы и близки к уровню шумов измерения. Дополнительно важно учитывать,
+что без grid-stride цикла конфигурация 1x32 не покрывает весь
+массив для больших $n$, поэтому такое сравнение не полностью эквивалентно.
+\end{sloppypar}
+
+\end{document}

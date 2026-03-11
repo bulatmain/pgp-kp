@@ -1,0 +1,274 @@
+\documentclass[a4paper,14pt]{extarticle}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\geometry{
+    left=30mm,
+    right=15mm,
+    top=20mm,
+    bottom=20mm
+}
+
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{3em}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\lstdefinestyle{cudastyle}{
+    language=C++,
+    basicstyle=\ttfamily\normalsize,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false
+}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+\textbf{МОСКОВСКИЙ АВИАЦИОННЫЙ ИНСТИТУТ}\\
+\textbf{(НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ)}\\
+Институт №8 «Компьютерные науки и прикладная математика»
+\end{center}
+
+\vspace{3.5cm}
+\begin{center}
+\textbf{\Large Лабораторная работа №4}\\
+\vspace{0.3cm}
+по курсу «Технологии параллельного программирования»\\
+\vspace{0.8cm}
+\textbf{Работа с матрицами. Метод Гаусса}
+\end{center}
+
+\vspace{4cm}
+\begin{flushright}
+Выполнил: Ахметшин Б.Р.\\
+Группа: М8О-403Б-22\\
+Преподаватели: А.Ю. Морозов,\\
+\hspace*{3.6cm} Е.Е. Заяц
+\end{flushright}
+
+\vfill
+\begin{center}
+Москва, 2026
+\end{center}
+\end{titlepage}
+
+\section*{Условие}
+Цель работы: реализовать метод Гаусса на GPU с выбором главного элемента по столбцу,
+используя библиотеку Thrust для поиска максимального элемента, и провести исследование
+производительности с помощью профилировщика \texttt{nvprof}.
+
+Выполненная реализация соответствует варианту 3 (решение квадратной СЛАУ
+\(Ax=b\)).
+
+\section*{Программное и аппаратное обеспечение}
+\textbf{GPU}
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.50\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+Имя & NVIDIA Tesla T4 \\
+Compute Capability & 7.5 \\
+Объем глобальной памяти & 15637086208 \\
+Разделяемая память на блок & 49152 \\
+Константная память & 65536 \\
+Регистров на блок & 65536 \\
+Макс. потоков на блок & (1024, 1024, 64) \\
+Макс. размер сетки & (2147483647, 65535, 65535) \\
+Количество мультипроцессоров & 40 \\
+\end{tabular}
+
+\vspace{0.4cm}
+\textbf{CPU}
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.50\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+Архитектура & x86\_64 \\
+CPU op-mode(s) & 32-bit, 64-bit \\
+Address sizes & 48 bits physical, 48 bits virtual \\
+Порядок байт & Little Endian \\
+CPU(s) & 12 \\
+Имя модели & AMD Ryzen 5 7600 6-Core Processor \\
+Ядер / потоков & 6 / 12 \\
+\end{tabular}
+
+\vspace{0.4cm}
+\textbf{RAM}\\
+64 GB
+
+\vspace{0.2cm}
+\textbf{ОС}\\
+Ubuntu 24.04.4 LTS
+
+\vspace{0.2cm}
+\textbf{Компилятор}\\
+nvcc, g++
+
+\section*{Метод решения}
+Используется классический метод Гаусса с частичным выбором главного элемента
+по столбцу:
+\begin{enumerate}
+    \item на шаге \(k\) выбирается строка с максимальным по модулю элементом
+    в текущем столбце (\texttt{thrust::max\_element});
+    \item выполняется перестановка строк;
+    \item вычисляются коэффициенты исключения;
+    \item обнуляются элементы ниже главного в двумерной CUDA-сетке потоков;
+    \item после прямого хода выполняется обратный ход (back substitution).
+\end{enumerate}
+
+\section*{Описание программы}
+\begin{itemize}
+    \item \texttt{lab4.cu} --- GPU-реализация: kernels для перестановки строк,
+    вычисления коэффициентов и исключения; поиск pivot через Thrust.
+    \item \texttt{lab4-cpu.cpp} --- CPU-реализация того же алгоритма для сравнения.
+    \item \texttt{generate\_case.py} --- генератор тестовых систем (диагонально доминирующих).
+    \item \texttt{run\_case.sh} --- запуск кейса с файла.
+    \item \texttt{profile\_nvprof.sh} --- запуск с профилировщиком \texttt{nvprof}.
+\end{itemize}
+
+Внутренние замеры:
+\begin{itemize}
+    \item GPU: \texttt{kernel\_ms}, \texttt{total\_ms} (\texttt{timings\_gpu\_lab4.txt});
+    \item CPU: \texttt{total\_ms} (\texttt{timings\_cpu\_lab4.txt});
+    \item параметры блоков GPU можно задавать через
+    \texttt{LAB4\_SWAP\_THREADS}, \texttt{LAB4\_FACTOR\_THREADS},
+    \texttt{LAB4\_ELIM\_BLOCK\_X}, \texttt{LAB4\_ELIM\_BLOCK\_Y}.
+\end{itemize}
+
+\textbf{Как из кастомных параметров получается launch-конфигурация kernel'ов:}
+\begin{itemize}
+    \item \texttt{swapRowsKernel}:\\
+    \texttt{block = (LAB4\_SWAP\_THREADS, 1, 1)},\\
+    \texttt{grid.x = ceil((n+1)/LAB4\_SWAP\_THREADS)}.
+    \item \texttt{computeFactorsKernel}:\\
+    \texttt{block = (LAB4\_FACTOR\_THREADS, 1, 1)},\\
+    \texttt{grid.x = ceil((n-(k+1))/LAB4\_FACTOR\_THREADS)}.
+    \item \texttt{eliminateKernel}:\\
+    \texttt{block = (LAB4\_ELIM\_BLOCK\_X, LAB4\_ELIM\_BLOCK\_Y, 1)},\\
+    \texttt{grid.x = ceil((n+1-k)/LAB4\_ELIM\_BLOCK\_X)},\\
+    \texttt{grid.y = ceil((n-(k+1))/LAB4\_ELIM\_BLOCK\_Y)}.
+    \item Поиск главного элемента через \texttt{thrust::max\_element}
+    запускает внутренние kernel'ы Thrust/CUB; их конфигурация в \texttt{nvprof}
+    отображается отдельно и напрямую через \texttt{LAB4\_*} не задается.
+\end{itemize}
+
+\section*{Результаты}
+\textbf{Замеры времени:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,frame=single]
++----+--------+---------------+------------+----------------+---------------+
+| No | n      | CUDA config   | CPU, ms    | GPU kernel, ms | GPU total, ms |
++----+--------+---------------+------------+----------------+---------------+
+| 1  | 128    | swap=128,     | 0.218658   | 794.482422     | 1093.930854   |
+|    |        | factor=128,   |            |                |               |
+|    |        | elim=(16, 16) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 2  | 128    | swap=256,     |            | 64.523422      | 271.532119    |
+|    |        | factor=256,   | 0.218658   |                |               |
+|    |        | elim=(32, 32) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 3  | 128    | swap=512,     | 0.218658   | 99.555840      | 296.643681    |
+|    |        | factor=512,   |            |                |               |
+|    |        | elim=(64, 64) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 4  | 512    | swap=128,     | 13.721943  | 599.301819     | 795.664067    |
+|    |        | factor=128,   |            |                |               |
+|    |        | elim=(16, 16) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 5  | 512    | swap=256,     | 13.721943  | 514.086426     | 702.878280    |
+|    |        | factor=256,   |            |                |               |
+|    |        | elim=(32, 32) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 6  | 512    | swap=512,     | 13.721943  | 570.717224     | 780.682874    |
+|    |        | factor=512,   |            |                |               |
+|    |        | elim=(64, 64) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 7  | 2048   | swap=128,     | 850.001810 | 2534.226562    | 2914.033293   |
+|    |        | factor=128,   |            |                |               |
+|    |        | elim=(16, 16) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 8  | 2048   | swap=256,     | 850.001810 | 2599.576904    | 2891.329117   |
+|    |        | factor=256,   |            |                |               |
+|    |        | elim=(32, 32) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+| 9  | 2048   | swap=512,     | 850.001810 | 2580.171143    | 2901.593170   |
+|    |        | factor=512,   |            |                |               |
+|    |        | elim=(64, 64) |            |                |               |
++----+--------+---------------+------------+----------------+---------------+
+\end{lstlisting}
+
+\newpage
+\textbf{Логи профилировщика \texttt{nvprof} (сводка):}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,frame=single,breaklines=true]
+==10411== NVPROF is profiling process 10411, command: ./lab4
+==10411== Profiling application: ./lab4
+==10411== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   36.99%  785.59us       128  6.1370us  4.1600us  7.5520us  [thrust::cuda_cub reduce arg_max kernel]
+                   22.05%  468.38us       127  3.6880us  3.4560us  4.3840us  computeFactorsKernel(double const *, double*, int, int, int)
+                   20.24%  429.91us       257  1.6720us  1.5680us  12.192us  [CUDA memcpy DtoH]
+                   20.08%  426.55us       127  3.3580us  2.8800us  4.4480us  eliminateKernel(double*, double const *, int, int, int)
+                    0.64%  13.536us         1  13.536us  13.536us  13.536us  [CUDA memcpy HtoD]
+
+\end{lstlisting}
+
+\textbf{Анализ профилировщика:}
+\begin{itemize}
+    \item Для профиля \(n=128\) (параметры: swap/factor = 256,
+    elim = (16,16)):
+    основной вклад дают три группы GPU-активностей:
+    \texttt{thrust reduce} (36.99\%), \texttt{computeFactorsKernel} (22.05\%)
+    и \texttt{eliminateKernel} (20.08\%).
+    Также заметна доля частых \texttt{DtoH} копирований
+    малых объемов (20.24\%).
+    \item В профиле видно большое число очень коротких запусков
+    (порядка \(3\!-\!7\)\,\(\mu s\) на kernel). Для малого размера матрицы это
+    приводит к доминированию накладных расходов запуска/синхронизаций.
+    \item Копирование крупных массивов не является узким местом:
+    HtoD 129\,KB занимает малую долю (0.64\%),
+    тогда как
+    повторяющиеся мелкие \texttt{DtoH} добавляют значимую задержку.
+    \item По таблице замеров видно, что рост \(n\) увеличивает долю полезной
+    работы ядра (например, для \(n=2048\) \(kernel\_ms \approx 2.58\!-\!2.60\) c
+    при \(total\_ms \approx 2.89\) c), однако реализация все равно уступает CPU
+    по общему времени.
+\end{itemize}
+
+\section*{Выводы}
+По результатам экспериментов и профилирования получены следующие выводы:
+\begin{itemize}
+    \item Для всех исследованных размеров (\(n=128,512,2048\)) текущая
+    GPU-реализация оказалась медленнее CPU по полному времени выполнения.
+    Наиболее заметное отставание наблюдается на малых размерах, где
+    накладные расходы доминируют.
+    \item На \(n=128\) лучшая из протестированных конфигураций
+    (swap=256, factor=256, elim=(32,32)) дает
+    \(GPU\ total=271.53\) ms против \(CPU=0.22\) ms.
+    \item На \(n=512\) лучшая конфигурация
+    (swap=256, factor=256,
+    elim=(32,32)) дает
+    \(GPU\ total=702.88\) ms против \(CPU=13.72\) ms.
+    \item На \(n=2048\) лучшая конфигурация
+    (swap=256, factor=256,
+    elim=(32,32)) дает
+    \(GPU\ total=2891.33\) ms против \(CPU=850.00\) ms.
+    \item Профиль \texttt{nvprof} подтверждает, что существенную долю времени
+    занимают многократные короткие запуски kernel'ов и частые мелкие
+    синхронизирующие копирования \texttt{DtoH}. Это объясняет, почему даже при
+    корректной двумерной сетке потоков GPU не показывает ускорения в текущей
+    постановке.
+    \item Для повышения эффективности целесообразно уменьшать число запусков
+    kernel'ов и CPU-GPU синхронизаций (укрупнение шагов, сокращение мелких
+    \texttt{DtoH}, перенос большего объема логики выбора pivot на GPU).
+\end{itemize}
+
+\end{document}

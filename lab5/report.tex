@@ -1,0 +1,251 @@
+\documentclass[a4paper,14pt]{extarticle}
+
+\usepackage[T2A]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\geometry{
+    left=30mm,
+    right=15mm,
+    top=20mm,
+    bottom=20mm
+}
+
+\onehalfspacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+\setlength{\emergencystretch}{3em}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\lstdefinestyle{cudastyle}{
+    language=C++,
+    basicstyle=\ttfamily\normalsize,
+    frame=single,
+    breaklines=true,
+    showstringspaces=false
+}
+
+\begin{document}
+
+\begin{titlepage}
+\begin{center}
+\textbf{МОСКОВСКИЙ АВИАЦИОННЫЙ ИНСТИТУТ}\\
+\textbf{(НАЦИОНАЛЬНЫЙ ИССЛЕДОВАТЕЛЬСКИЙ УНИВЕРСИТЕТ)}\\
+Институт №8 «Компьютерные науки и прикладная математика»
+\end{center}
+
+\vspace{3.5cm}
+\begin{center}
+\textbf{\Large Лабораторная работа №5}\\
+\vspace{0.3cm}
+по курсу «Технологии параллельного программирования»\\
+\vspace{0.8cm}
+\textbf{Сортировка чисел на GPU}
+\end{center}
+
+\vspace{4cm}
+\begin{flushright}
+Выполнил: Ахметшин Б.Р.\\
+Группа: М8О-403Б-22\\
+Преподаватели: А.Ю. Морозов,\\
+\hspace*{3.6cm} Е.Е. Заяц
+\end{flushright}
+
+\vfill
+\begin{center}
+Москва, 2026
+\end{center}
+\end{titlepage}
+
+\section*{Условие}
+Цель работы: реализовать сортировку чисел на GPU с использованием
+фундаментальных примитивов (гистограмма, сканирование), провести сравнение
+с CPU и исследовать производительность с помощью \texttt{nvprof}.
+
+Выполненная реализация соответствует \textbf{варианту 3}:
+сортировка подсчетом для чисел типа \texttt{uchar} (диапазон 0..255).
+
+Формат данных:
+\begin{itemize}
+    \item вход: \texttt{[int32 n][n x uchar]}, чтение из \texttt{stdin};
+    \item выход: \texttt{n} отсортированных \texttt{uchar} в \texttt{stdout}.
+\end{itemize}
+
+\section*{Программное и аппаратное обеспечение}
+\textbf{GPU}
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.50\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+Имя & NVIDIA Tesla T4 \\
+Compute Capability & 7.5 \\
+Объем глобальной памяти & 15637086208 \\
+Разделяемая память на блок & 49152 \\
+Константная память & 65536 \\
+Регистров на блок & 65536 \\
+Макс. потоков на блок & (1024, 1024, 64) \\
+Макс. размер сетки & (2147483647, 65535, 65535) \\
+Количество мультипроцессоров & 40 \\
+\end{tabular}
+
+\vspace{0.4cm}
+\textbf{CPU}
+
+\begin{tabular}{>{\raggedright\arraybackslash}p{0.50\textwidth}>{\raggedright\arraybackslash}p{0.34\textwidth}}
+Архитектура & x86\_64 \\
+CPU op-mode(s) & 32-bit, 64-bit \\
+Address sizes & 48 bits physical, 48 bits virtual \\
+Порядок байт & Little Endian \\
+CPU(s) & 12 \\
+Имя модели & AMD Ryzen 5 7600 6-Core Processor \\
+Ядер / потоков & 6 / 12 \\
+\end{tabular}
+
+\vspace{0.4cm}
+\textbf{RAM}\\
+64 GB
+
+\vspace{0.2cm}
+\textbf{ОС}\\
+Ubuntu 24.04.4 LTS
+
+\vspace{0.2cm}
+\textbf{Компилятор}\\
+nvcc, g++
+
+\section*{Метод решения}
+Используется сортировка подсчетом для \texttt{uchar}:
+\begin{enumerate}
+    \item строится гистограмма частот значений 0..255 с атомарными операциями;
+    \item выполняется exclusive scan (Blelloch) по 256 корзинам
+    с бесконфликтным доступом к shared memory;
+    \item по \texttt{histogram} и \texttt{offsets} восстанавливается
+    отсортированный массив.
+\end{enumerate}
+
+На CPU реализован эквивалентный counting sort для корректного сравнения
+времени и верификации результата.
+
+\section*{Описание программы}
+\begin{itemize}
+    \item \texttt{lab5.cu} --- GPU-реализация (гистограмма + scan + восстановление массива),
+    внутренние замеры \texttt{kernel\_ms}/\texttt{total\_ms}.
+    \item \texttt{lab5-cpu.cpp} --- CPU-реализация counting sort,
+    внутренний замер \texttt{total\_ms}.
+    \item \texttt{generate\_case.py} --- генератор бинарных тестов
+    формата \texttt{[int32 n][n x uchar]}.
+    \item \texttt{run\_case.sh} --- запуск исполняемого файла на входном кейсе.
+    \item \texttt{profile\_nvprof.sh} --- запуск с профилировщиком
+    \texttt{nvprof} (сводный отчет).
+\end{itemize}
+
+Параметры через переменные окружения:
+\begin{itemize}
+    \item GPU: \texttt{LAB5\_HIST\_THREADS};
+    \item GPU: \texttt{LAB5\_FILL\_THREADS};
+\end{itemize}
+
+\textbf{Launch-конфигурации kernel'ов из кастомных параметров:}
+\begin{itemize}
+    \item \texttt{clearHistogramKernel}:\\
+    \texttt{block = (LAB5\_HIST\_THREADS, 1, 1)},\\
+    \texttt{grid.x = ceil(256/LAB5\_HIST\_THREADS)}.
+    \item \texttt{buildHistogramKernel}:\\
+    \texttt{block = (LAB5\_HIST\_THREADS, 1, 1)},\\
+    \texttt{grid.x = ceil(n/LAB5\_HIST\_THREADS)}.
+    \item \texttt{scan256Kernel}:\\
+    \texttt{block = (128, 1, 1)}, \texttt{grid = (1, 1, 1)} (фиксировано для 256 корзин).
+    \item \texttt{fillSortedArrayKernel}:\\
+    \texttt{block = (LAB5\_FILL\_THREADS, 1, 1)},\\
+    \texttt{grid = (256, 1, 1)}.
+\end{itemize}
+
+\section*{Результаты}
+\textbf{Замеры времени:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,frame=single]
++----+-----------+---------------------+-----------+----------------+---------------+
+| No | n         | CUDA config         | CPU, ms   | GPU kernel, ms | GPU total, ms |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 1  | 1000      | hist=64, fill=32    | 0.002250  | 0.323168       | 395.620671    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 2  | 1000      | hist=128, fill=64   | 0.002250  | 0.317088       | 293.304433    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 3  | 1000      | hist=256, fill=128  | 0.002250  | 0.352256       | 290.412191    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 4  | 1000000   | hist=64, fill=32    | 0.955771  | 0.274272       | 282.703727    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 5  | 1000000   | hist=128, fill=62   | 0.955771  | 0.284224       | 282.320927    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 6  | 1000000   | hist=256, fill=128  | 0.955771  | 0.296992       | 271.056927    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 7  | 100000000 | hist=64, fill=32    | 92.699408 | 2.894880       | 532.688073    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 8  | 100000000 | hist=128, fill=62   | 92.699408 | 2.714176       | 460.864727    |
++----+-----------+---------------------+-----------+----------------+---------------+
+| 9  | 100000000 | hist=256, fill=128  | 92.699408 | 2.991680       | 470.329608    |
++----+-----------+---------------------+-----------+----------------+---------------+
+\end{lstlisting}
+
+\textbf{Логи профилировщика \texttt{nvprof}:}
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize,frame=single,breaklines=true]
+==10076== NVPROF is profiling process 10076, command: ./lab5
+==10076== Profiling application: ./lab5
+==10076== Profiling result:
+            Type  Time(%)      Time     Calls       Avg       Min       Max  Name
+ GPU activities:   48.13%  21.810ms         1  21.810ms  21.810ms  21.810ms  [CUDA memcpy DtoH]
+                   46.06%  20.870ms         1  20.870ms  20.870ms  20.870ms  [CUDA memcpy HtoD]
+                    3.61%  1.6347ms         1  1.6347ms  1.6347ms  1.6347ms  buildHistogramKernel(unsigned char const *, int, unsigned int*)
+                    2.19%  991.12us         1  991.12us  991.12us  991.12us  fillSortedArrayKernel(unsigned int const *, unsigned int const *, unsigned char*)
+                    0.01%  6.2080us         1  6.2080us  6.2080us  6.2080us  scan256Kernel(unsigned int const *, unsigned int*)
+                    0.01%  3.2000us         1  3.2000us  3.2000us  3.2000us  clearHistogramKernel(unsigned int*)
+\end{lstlisting}
+
+\textbf{Анализ профилировщика:}
+\begin{itemize}
+    \item По сводке \texttt{nvprof} основной вклад в GPU-время дают копирования:
+    \texttt{[CUDA memcpy DtoH]} --- 48.13\%, \texttt{[CUDA memcpy HtoD]} --- 46.06\%.
+    Суммарно это около 94.19\% времени GPU-активностей.
+    \item Сами вычислительные kernel'ы занимают малую долю:
+    buildHistogram --- 3.61\%,
+    fillSortedArray --- 2.19\%,
+    scan256/clearHistogram --- менее 0.02\%.
+    \item По таблице замеров видно, что время GPU-ядра мало
+    (от 0.27 до 2.99 ms) и растет с \(n\) значительно медленнее, чем время CPU.
+    Однако полное время GPU (\(271\!-\!533\) ms) остается высоким из-за накладных
+    расходов на обмен данными и инфраструктурные операции запуска.
+    \item Влияние конфигурации \texttt{hist/fill} заметно, но умеренно:
+    наиболее удачные комбинации уменьшают общее время на десятки миллисекунд,
+    не меняя качественно вывод о доминировании накладных расходов.
+    \item Возможные улучшения: закрепленная (pinned) host-память, повторное
+    использование буферов и контекста между запусками, обработка данных
+    пакетами без возврата на CPU после каждого шага.
+\end{itemize}
+
+\section*{Выводы}
+По результатам экспериментов получены следующие выводы:
+\begin{itemize}
+    \item Для всех исследованных размеров (\(n=10^3, 10^6, 10^8\))
+    текущая GPU-реализация проигрывает CPU по полному времени:
+    минимум 290.41 ms против 0.00225 ms при \(n=10^3\),
+    271.06 ms против 0.95577 ms при \(n=10^6\),
+    460.86 ms против 92.70 ms при \(n=10^8\).
+    \item При этом по времени самих kernel'ов GPU работает эффективно:
+    0.27--2.99 ms, что существенно меньше CPU-вычислений на больших \(n\).
+    \item Профилирование подтверждает, что основной узкий участок --- не вычисления,
+    а передача данных HtoD/DtoH, которая занимает более 94\% GPU-активностей.
+    \item Лучшая конфигурация из проверенных:
+    для \(n=10^3\) и \(10^6\) --- \texttt{hist=256, fill=128},
+    для \(n=10^8\) --- \texttt{hist=128, fill=62}.
+    \item Итог: алгоритм на GPU корректен и быстрый на уровне kernel'ов, но для
+    единичного запуска с копированием данных туда-обратно ускорение не достигается;
+    для практического выигрыша нужно сокращать накладные расходы обмена и запуска.
+\end{itemize}
+
+\end{document}
